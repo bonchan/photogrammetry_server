@@ -1,0 +1,64 @@
+.workspace-container {
+  width: 20%;
+  min-width: 250px;
+  border-right: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  background-color: #fafafa;
+  height: 100%; /* Fills the vertical space */
+}
+
+.workspace-header {
+  padding: 20px;
+  border-bottom: 1px solid #ddd;
+  background-color: #fff;
+  /* Redundant with flex, but guarantees it stays pinned */
+  position: sticky; 
+  top: 0;
+  z-index: 10;
+}
+
+.workspace-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.workspace-list {
+  flex: 1; /* Takes up all remaining space below the header */
+  overflow-y: auto; /* Adds the scrollbar ONLY to the list */
+  padding: 10px;
+}
+
+.dataset-item {
+  padding: 10px 15px;
+  margin-bottom: 5px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dataset-item.selected {
+  background-color: #e3f2fd;
+  border-color: #90caf9;
+}
+
+.dataset-name {
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dataset-item.selected .dataset-name {
+  font-weight: bold;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

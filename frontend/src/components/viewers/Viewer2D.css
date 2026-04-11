@@ -1,0 +1,33 @@
+/* src/components/viewer/Viewer.css */
+
+.viewer-wrapper {
+  width: 100%;
+  height: 100%;
+  background-color: #1e1e1e;
+  position: relative;
+}
+
+.viewer-empty {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+}
+
+.viewer-canvas {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px; /* Optional: gives a little breathing room around the edges */
+  box-sizing: border-box;
+}
+
+.viewer-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}

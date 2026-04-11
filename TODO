@@ -1,0 +1,12 @@
+
+
+
+https://www.agisoft.com/pdf/metashape_python_api_2_1_0.pdf#page=125&zoom=100,96,366
+
+
+
+backend run from root
+ - python -m backend.main
+
+frontend run from frontend
+ - pnpm run dev

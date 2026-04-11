@@ -1,0 +1,21 @@
+
+
+
+#ui { 
+    position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.9); 
+    color: white; padding: 15px; border-radius: 8px; width: 320px; 
+    border: 1px solid #444; z-index: 10; display: flex; flex-direction: column; 
+    max-height: 90vh; box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+}
+.toolbar { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 10px 0; }
+.btn { background: #333; color: white; border: 1px solid #555; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; }
+.btn.primary { background: #0078d7; border-color: #0078d7; font-size: 14px; }
+.btn.active { background: #00ff00; color: black; }
+#poly-container { flex-grow: 1; overflow-y: auto; border-top: 1px solid #444; padding-top: 10px; }
+.poly-item { background: #222; border: 1px solid #444; margin-bottom: 8px; padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+.poly-item.editing { border-color: #ffaa00; background: #332200; }
+.val { color: #00ff00; font-weight: bold; }
+.hint { color: #aaa; font-size: 11px; margin-bottom: 5px; }
+#draw-hint { background: #111; padding: 8px; border-radius: 4px; border-left: 3px solid #00ff00; font-size: 12px; margin-bottom: 10px; display: none; }
+.btn-icon { background: #444; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; }
+.btn-icon.del { background: #cc3333; }
