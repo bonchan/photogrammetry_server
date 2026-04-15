@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, useMap, LayersControl, useMapEvents, Marker, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, LayerGroup, useMap, LayersControl, useMapEvents, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useData } from '@/context/DataContext';
@@ -8,13 +8,28 @@ import { useData } from '@/context/DataContext';
 
 const MapViewer = () => {
   const { datasets, selectedFolder } = useData();
-  const currentDataset = datasets.find(d => d.name === selectedFolder);
+  const [tileMeta, setTileMeta] = useState<{ minZoom: number, maxZoom: number, bounds: [[number, number], [number, number]] } | null>(null);
 
+  const currentDataset = datasets.find(d => d.name === selectedFolder);
   if (!currentDataset || !currentDataset.isCompleted) {
     return <div className="viewer-empty">Process the dataset to view the map.</div>;
   }
 
-  const tileUrl = `/api/outputs/${currentDataset.name}_out/tiles/{z}/{x}/{y}.png`;
+  const tileUrl = `/api/outputs/${currentDataset.name}_out/exports/${currentDataset.name}_map_tiles/{z}/{x}/{y}.png`;
+
+  useEffect(() => {
+    if (currentDataset) {
+      const tileInfoUrl = `/api/outputs/${currentDataset.name}_out/exports/${currentDataset.name}_map_tiles/tile_info.json`;
+      fetch(tileInfoUrl)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => setTileMeta(data))
+        .catch(() => setTileMeta(null));
+    }
+  }, [currentDataset]);
+
+  if (!currentDataset || !currentDataset.isCompleted) {
+    return <div className="viewer-empty">Process the dataset to view the map.</div>;
+  }
 
   return (
     <div style={{ width: '100%', height: '100%', background: '#1a1a1a' }}>
@@ -60,15 +75,26 @@ const MapViewer = () => {
           {/* --- OVERLAYS (Checkboxes) --- */}
 
           <LayersControl.Overlay checked name="Drone Survey (Orthomosaic)">
-            <TileLayer
-              url={tileUrl}
-              tms={false}
-              opacity={1.0}
-              minNativeZoom={14}
-              maxNativeZoom={22}
-              minZoom={14}
-              maxZoom={24}
-            />
+            {tileMeta ? (
+              <TileLayer
+                key={`${currentDataset.name}-${tileMeta.minZoom}`}
+                url={tileUrl}
+                tms={false}
+                opacity={1.0}
+                bounds={tileMeta?.bounds}
+                minNativeZoom={tileMeta?.minZoom || 14}
+                maxNativeZoom={tileMeta?.maxZoom || 22}
+                // minNativeZoom={14}
+                // maxNativeZoom={22}
+                minZoom={14}
+                maxZoom={24}
+                keepBuffer={2}
+                updateWhenZooming={false}
+                errorTileUrl="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+              />) : (
+              // Optional: A Layer that does nothing while loading to prevent crashes
+              <LayerGroup />
+            )}
           </LayersControl.Overlay>
 
         </LayersControl>
@@ -106,7 +132,7 @@ function DroneIndicator({ datasetName }: { datasetName: string }) {
   useEffect(() => {
     const fetchCenter = async () => {
       try {
-        const response = await fetch(`/api/outputs/${datasetName}_out/map_center.json`);
+        const response = await fetch(`/api/outputs/${datasetName}_out/exports/map_center.json`);
 
         if (response.ok) {
           const centerData = await response.json();

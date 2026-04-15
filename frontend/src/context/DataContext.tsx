@@ -1,71 +1,143 @@
-// src/context/DataContext.tsx
 import React, { createContext, useState, useEffect, useContext, useMemo, type ReactNode } from 'react';
-import type { Job, FolderInfo, Dataset } from '@/types/interfaces';
+import type { Job, Dataset, RunConfig } from '@/types/interfaces';
 
 interface DataContextType {
   datasets: Dataset[];
   selectedFolder: string | null;
   setSelectedFolder: (folder: string | null) => void;
-  startJob: (folderName: string) => Promise<void>;
+  startJob: (folderName: string, config?: RunConfig) => Promise<void>;
   refreshData: () => void;
+  completedSteps: string[];
+  pipelineProfiles: any;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [folders, setFolders] = useState<FolderInfo[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
+  // We now store a single source of truth directly from the workspace endpoint
+  const [rawDatasets, setRawDatasets] = useState<any[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [pipelineProfiles, setPipelineProfiles] = useState<any>({});
 
-  const fetchFolders = async () => {
+  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
+
+  // --- 1. INITIAL LOAD & MANUAL REFRESH ---
+  const fetchWorkspace = async () => {
     try {
-      const res = await fetch('/api/available-datasets');
-      if (res.ok) setFolders(await res.json());
+      const res = await fetch('/api/workspace');
+      if (res.ok) {
+        setRawDatasets(await res.json());
+      }
     } catch (e) {
-      console.error("Failed to fetch folders", e);
+      console.error("Failed to fetch workspace", e);
     }
   };
 
-  const fetchJobs = async () => {
+  const fetchPipelines = async () => {
     try {
-      const res = await fetch('/api/jobs');
-      if (res.ok) setJobs(await res.json());
+      const res = await fetch('/api/pipelines');
+      if (res.ok) {
+        setPipelineProfiles(await res.json());
+      }
     } catch (e) {
-      console.error("Failed to fetch jobs", e);
+      console.error("Failed to fetch pipelines", e);
     }
   };
 
   const refreshData = () => {
-    fetchFolders();
-    fetchJobs();
+    fetchWorkspace();
   };
 
-  const startJob = async (folderName: string) => {
+  // --- 2. WEBSOCKET FOR REAL-TIME UPDATES ---
+  useEffect(() => {
+    // Initial fetch
+    fetchWorkspace();
+    fetchPipelines();
+
+    // Connect to WebSocket (adjust port if your backend runs elsewhere)
+    // If you are using Vite proxy, you might need to use standard WS url formatting
+    const wsUrl = `ws://127.0.0.1:8000/ws`; 
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => console.log("🟢 Connected to Metashape live feed");
+    
+    ws.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        // payload = { job_id, status, step, progress }
+        
+        // Update the specific dataset that owns this job_id
+        setRawDatasets(prev => prev.map(dataset => {
+          if (dataset.latest_job?.id === payload.job_id || dataset.latestJob?.id === payload.job_id) {
+            return {
+              ...dataset,
+              latest_job: {
+                ...dataset.latest_job,
+                status: payload.status,
+                step: payload.step,
+                progress: payload.progress,
+                updated_at: new Date().toISOString() // Touch the timestamp
+              }
+            };
+          }
+          return dataset;
+        }));
+      } catch (e) {
+        console.error("WebSocket parsing error:", e);
+      }
+    };
+
+    ws.onclose = () => console.log("🔴 Disconnected from Metashape feed");
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
+  // useEffect(() => {
+  //   if (selectedFolder) {
+  //     fetch(`/api/state/${encodeURIComponent(selectedFolder)}`)
+  //       .then(res => res.json())
+  //       .then(data => setCompletedSteps(data.completed_steps || []))
+  //       .catch(() => setCompletedSteps([]));
+  //   } else {
+  //     setCompletedSteps([]);
+  //   }
+  // }, [selectedFolder, rawDatasets]);
+
+  // --- 3. MODULAR RUN LAUNCHER ---
+  // Now accepts a config object so you can say startJob("FM-PP-10", { start_step: "build_depth_maps" })
+  const startJob = async (folderName: string, config: RunConfig = {}) => {
     try {
-      const response = await fetch(`/api/run/${encodeURIComponent(folderName)}`, { method: 'POST' });
-      if (response.ok) refreshData();
+      const response = await fetch(`/api/run/${encodeURIComponent(folderName)}`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config) // Pass the pipeline boundaries!
+      });
+      if (response.ok) {
+        // We trigger a hard refresh just to ensure DB syncs, 
+        // but WS will take over immediately after.
+        refreshData(); 
+      }
     } catch (error) {
       console.error("Error starting job:", error);
     }
   };
 
-  useEffect(() => {
-    refreshData();
-    const interval = setInterval(fetchJobs, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
+  // --- 4. COMPUTED STATE ---
   const datasets = useMemo(() => {
-    const merged: Dataset[] = folders.map(folder => {
-      const latestJob = jobs.find(j => j.dataset_name === folder.name);
-
-      let isProcessing = latestJob?.status === 'PROCESSING' || latestJob?.status === 'PENDING';
-      const isCompleted = latestJob?.status === 'COMPLETED';
-      const isFailed = latestJob?.status === 'FAILED';
+    const processed: Dataset[] = rawDatasets.map(item => {
+      // Handle the snake_case from python to camelCase in React
+      const job = item.latest_job; 
+      
+      let isProcessing = job?.status === 'PROCESSING' || job?.status === 'PENDING';
+      const isCompleted = job?.status === 'COMPLETED';
+      const isFailed = job?.status === 'FAILED';
       let isStalled = false;
 
-      if (isProcessing && latestJob?.updated_at) {
-        const safeDateStr = latestJob.updated_at.replace(' ', 'T') + 'Z';
+      // Stall detection (if WS disconnects and API hasn't heard from it in 5 mins)
+      if (isProcessing && job?.updated_at) {
+        const safeDateStr = job.updated_at.replace(' ', 'T') + 'Z';
         const diffMinutes = (Date.now() - new Date(safeDateStr).getTime()) / (1000 * 60);
         if (diffMinutes > 5) {
           isStalled = true;
@@ -74,8 +146,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       return {
-        ...folder,
-        latestJob,
+        name: item.dataset_name,
+        count: item.image_count,
+        latestJob: job,
         isProcessing,
         isCompleted,
         isFailed,
@@ -83,7 +156,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
     });
 
-    return merged.sort((a, b) => {
+    return processed.sort((a, b) => {
       const getStatusWeight = (d: Dataset) => {
         if (d.isCompleted) return 4;
         if (d.isFailed) return 3;
@@ -97,16 +170,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (weightA !== weightB) return weightB - weightA;
       return a.name.localeCompare(b.name);
     });
-  }, [folders, jobs]);
+  }, [rawDatasets]);
 
+  // Keep selected folder valid
   useEffect(() => {
-    if (selectedFolder && !folders.some(f => f.name === selectedFolder)) {
+    if (selectedFolder && !datasets.some(f => f.name === selectedFolder)) {
       setSelectedFolder(null);
     }
-  }, [folders, selectedFolder]);
+  }, [datasets, selectedFolder]);
 
   return (
-    <DataContext.Provider value={{ datasets, selectedFolder, setSelectedFolder, startJob, refreshData }}>
+    <DataContext.Provider value={{ datasets, selectedFolder, setSelectedFolder, startJob, refreshData, completedSteps, pipelineProfiles }}>
       {children}
     </DataContext.Provider>
   );
@@ -114,8 +188,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useData = () => {
   const context = useContext(DataContext);
-  if (context === undefined) {
-    throw new Error("useData must be used within a DataProvider");
-  }
+  if (context === undefined) throw new Error("useData must be used within a DataProvider");
   return context;
 };

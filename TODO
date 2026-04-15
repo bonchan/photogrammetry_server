@@ -1,12 +1,76 @@
+https://www.agisoft.com/pdf/metashape_python_api_2_1_2.pdf
 
 
 
-https://www.agisoft.com/pdf/metashape_python_api_2_1_0.pdf#page=125&zoom=100,96,366
-
-
-
-backend run from root
- - python -m backend.main
+backend run from backend
+ - python -m main
 
 frontend run from frontend
  - pnpm run dev
+
+#
+photogrammetry_project/
+├── .env                    # Metashape path, Database URL, etc.
+├── package.json            # Root scripts for "pnpm clean"
+├── scripts/
+│   └── clean.js            # Bulletproof cleanup script
+│
+├── backend/
+│   ├── main.py             # FastAPI entry point (Web Server)
+│   ├── worker.py           # Worker entry point (Process Manager)
+│   ├── database.py         # SQLAlchemy models and DB helpers
+│   ├── .env                # Symbolic link or copy of root .env
+│   │
+│   ├── core/               # The "Brains"
+│   │   ├── base_worker.py  # SIGTERM/SIGINT and generic logic
+│   │   └── ms_worker.py    # MetashapeWorker (Inheritance)
+│   │
+│   ├── tasks/              # Modular Step Logic
+-rw-r--r-- 1 bon 197121  766 Apr 11 23:05 __init__.py
+#-rw-r--r-- 1 bon 197121  732 Apr 11 23:03 add_photos.py
+-rw-r--r-- 1 bon 197121  257 Apr 11 23:02 align_laser_scans.py
+#-rw-r--r-- 1 bon 197121 4496 Apr 11 22:58 align_photos.py
+-rw-r--r-- 1 bon 197121  709 Apr 11 23:03 base_task.py
+-rw-r--r-- 1 bon 197121  867 Apr 11 22:26 build_dem.py
+# -rw-r--r-- 1 bon 197121  852 Apr 11 22:37 build_depth_maps.py
+# -rw-r--r-- 1 bon 197121   69 Apr 11 22:27 build_model.py
+# -rw-r--r-- 1 bon 197121  679 Apr 11 22:26 build_orthomosaic.py
+-rw-r--r-- 1 bon 197121   69 Apr 11 22:27 build_panorama.py
+-rw-r--r-- 1 bon 197121   69 Apr 11 22:27 build_point_cloud.py
+-rw-r--r-- 1 bon 197121   69 Apr 11 22:27 build_texture.py
+-rw-r--r-- 1 bon 197121   69 Apr 11 22:27 build_tiled_model.py
+-rw-r--r-- 1 bon 197121   69 Apr 11 22:27 chunks_align.py
+-rw-r--r-- 1 bon 197121   69 Apr 11 22:27 chunks_merge.py
+-rw-r--r-- 1 bon 197121   69 Apr 11 22:27 cleanup.py
+-rw-r--r-- 1 bon 197121  269 Apr 11 22:37 export_results.py
+-rw-r--r-- 1 bon 197121   69 Apr 11 22:27 generate_metadata.py
+│   │
+│   └── _datasets/          # System-generated files (Hidden from Git)
+│       └── [job_id]_out/
+│           ├── project.psx
+│           ├── config.json  # Saved params for invalidation logic
+│           ├── database.db  # (Usually in backend/ root)
+│           └── tiles/
+│
+└── frontend/
+    ├── package.json
+    ├── src/
+    │   ├── components/
+    │   │   └── NodeGraph/   # The Meshroom-style UI
+    │   └── App.tsx
+    └── vite.config.ts
+
+
+ dependency chart
+
+Level     Step	              Required Dependency	      Output Created
+0	        Add Photos	        Raw Files (.jpg, .tif)	  Camera Group
+1	        Align Photos	      Level 0	                  Tie Points (Sparse Cloud)
+2	        Optimize Alignment	Level 1 + (Markers/GPS)	  Refined Camera Calibration
+3	        Build Depth Maps	  Level 1 or 2	            Depth Maps
+4	        Build Point Cloud	  Level 3	                  Dense Point Cloud
+5a	      Build Model (Mesh)	Level 3 OR Level 4	      3D Mesh
+5b	      Build DEM	          Level 3 OR Level 4	      Elevation Model
+6a	      Build Texture	      Level 5a	                Textured Model
+6b	      Build Orthomosaic	  Level 5a OR Level 5b	    Orthomosaic (Map)
+7	        Export Tiles/ZIP	  Level 6a or 6b	          Final Deliverables

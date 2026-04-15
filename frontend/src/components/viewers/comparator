@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ortho Swipe Fixed</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; overflow: hidden; background: #222; }
+        
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 1; }
+
+        /* Controls */
+        #controls {
+            position: absolute; top: 20px; left: 60px; z-index: 5000;
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 15px; border-radius: 8px; width: 280px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        h3 { margin: 0 0 10px 0; font-size: 16px; color: #333; }
+        label { display: block; font-size: 12px; font-weight: bold; margin-top: 10px; }
+        input[type="file"] { width: 100%; font-size: 11px; margin-top: 5px; }
+
+        /* Mode Buttons */
+        .mode-row { display: flex; gap: 5px; margin-top: 15px; background: #eee; padding: 3px; border-radius: 4px; }
+        .mode-btn { flex: 1; text-align: center; padding: 5px; font-size: 12px; cursor: pointer; border-radius: 3px; }
+        .mode-btn.active { background: #0078d4; color: white; }
+
+        /* Slider Handle */
+        #handle {
+            position: absolute; top: 0; bottom: 0; left: 50%; width: 4px;
+            background: white; z-index: 6000; cursor: col-resize;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        #handle::after {
+            content: "Compare | Base"; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); background: white;
+            padding: 4px 8px; border-radius: 10px; font-size: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3); white-space: nowrap;
+        }
+
+        #loader {
+            display: none; position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); z-index: 9999;
+            background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">Processing...</div>
+    <div id="handle"></div>
+
+    <div id="controls">
+        <h3>Ortho Swipe</h3>
+        
+        <label>1. Base Layer (Right Side)</label>
+        <input type="file" id="file-base" accept=".tif,.tiff">
+
+        <label>2. Compare Layer (Left Side)</label>
+        <input type="file" id="file-compare" accept=".tif,.tiff">
+
+        <div class="mode-row">
+            <div class="mode-btn active" onclick="setMode('swipe')">Swipe</div>
+            <div class="mode-btn" onclick="setMode('opacity')">Opacity</div>
+        </div>
+        
+        <div id="op-control" style="display:none; margin-top:10px;">
+            <label>Opacity</label>
+            <input type="range" id="opacity-slider-compare" min="0" max="1" step="0.1" value="1" style="width:100%">
+            <input type="range" id="opacity-slider-base" min="0" max="1" step="0.1" value="1" style="width:100%">
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/georaster@1.6.0/dist/georaster.browser.bundle.min.js"></script>
+    <script src="https://unpkg.com/georaster-layer-for-leaflet@3.10.0/dist/georaster-layer-for-leaflet.min.js"></script>
+
+    <script>
+        // --- 1. Map Init ---
+        const map = L.map('map').setView([0, 0], 2);
+        //L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        //    attribution: 'Esri', maxZoom: 22
+        //}).addTo(map);
+
+        // Google Satellite Tile Layer
+        L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            maxZoom: 24,           // Allow zooming way in
+            maxNativeZoom: 22,     // The deepest level tiles actually exist
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+            attribution: 'Google'
+        }).addTo(map);
+
+        // --- 2. Create Panes (The Solution) ---
+        // Separate panes ensure strict layering
+        map.createPane('basePane');
+        map.getPane('basePane').style.zIndex = 200; // Lower Z-Index
+
+        map.createPane('comparePane');
+        map.getPane('comparePane').style.zIndex = 400; // Higher Z-Index
+
+        // --- 3. State ---
+        let layerBase = null;
+        let layerCompare = null;
+        let mode = 'swipe';
+        let sliderPos = 0.5; // 0.0 to 1.0
+
+        // --- 4. File Loader ---
+        async function loadFile(e, isBase) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('loader').style.display = 'block';
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const georaster = await parseGeoraster(event.target.result);
+                    
+                    // Assign to correct Pane
+                    const paneName = isBase ? 'basePane' : 'comparePane';
+                    
+                    const layer = new GeoRasterLayer({
+                        georaster: georaster,
+                        resolution: 256,
+                        pane: paneName // <--- Critical: Force layer into specific pane
+                    });
+
+                    if (isBase) {
+                        if (layerBase) map.removeLayer(layerBase);
+                        layerBase = layer;
+                        layerBase.addTo(map);
+                    } else {
+                        if (layerCompare) map.removeLayer(layerCompare);
+                        layerCompare = layer;
+                        layerCompare.addTo(map);
+                        layerCompare.setOpacity(1);
+                    }
+                    
+                    map.fitBounds(layer.getBounds());
+                    
+                    // Force update immediately
+                    setTimeout(updateClip, 100);
+
+                } catch (err) {
+                    alert("Error: " + err.message);
+                } finally {
+                    document.getElementById('loader').style.display = 'none';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        document.getElementById('file-base').addEventListener('change', (e) => loadFile(e, true));
+        document.getElementById('file-compare').addEventListener('change', (e) => loadFile(e, false));
+
+
+        // --- 5. Clipping Logic (Pane Based) ---
+        function updateClip() {
+            if (mode !== 'swipe') return;
+
+            const pane = map.getPane('comparePane');
+            if (!pane) return;
+
+            // Get Map Size
+            const size = map.getSize();
+            
+            // Calculate pixel position of slider relative to map container
+            const sliderPixelX = size.x * sliderPos;
+
+            // CSS Clip: rect(top, right, bottom, left)
+            // Show Compare Pane from Left(0) to Slider(sliderPixelX)
+            // We clip the entire PANE, not the layer. This is much faster and simpler.
+            pane.style.clip = `rect(0px, ${sliderPixelX}px, 99999px, 0px)`;
+            
+            // Note: Since we are clipping the PANE (which is fixed to the map container in Leaflet 1.0+),
+            // we don't need complex coordinate math if we use 'clip' on the pane element itself?
+            // Wait, Panes move with the map. We need the static clip.
+            
+            // Correction: Leaflet Panes move. We need to offset the clip by the map position.
+            // Actually, let's use the 'clip-path' on the pane, but calculate it relative to the map offset.
+            
+            const nw = map.containerPointToLayerPoint([0, 0]);
+            const se = map.containerPointToLayerPoint(size);
+            
+            // Calculate where the slider is in the "World" (Layer Coordinates)
+            const clipX = map.containerPointToLayerPoint([sliderPixelX, 0]).x;
+
+            // Apply clip to the Pane
+            // The pane moves, so we must clip relative to its current position (nw)
+            pane.style.clip = `rect(${nw.y}px, ${clipX}px, ${se.y}px, ${nw.x}px)`;
+        }
+
+        // --- 6. Event Listeners ---
+        map.on('move', updateClip);
+        map.on('zoom', updateClip);
+
+        // Drag Handle
+        const handle = document.getElementById('handle');
+        let isDragging = false;
+
+        handle.addEventListener('mousedown', (e) => { isDragging = true; e.preventDefault(); });
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            let pct = e.clientX / window.innerWidth;
+            if (pct < 0) pct = 0; if (pct > 1) pct = 1;
+            
+            sliderPos = pct;
+            handle.style.left = (pct * 100) + '%';
+            updateClip();
+        });
+
+        // Mode Switching
+        window.setMode = function(m) {
+            mode = m;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const opCtrl = document.getElementById('op-control');
+            const pane = map.getPane('comparePane');
+            
+            if (mode === 'swipe') {
+                opCtrl.style.display = 'none';
+                handle.style.display = 'block';
+                handle.style.left = (sliderPos * 100) + '%';
+                if(layerCompare) layerCompare.setOpacity(1);
+                updateClip();
+            } else {
+                opCtrl.style.display = 'block';
+                handle.style.display = 'none';
+                // Remove clip from pane
+                pane.style.clip = 'auto';
+                if(layerCompare) layerCompare.setOpacity(document.getElementById('opacity-slider-compare').value);
+                if(layerBase) layerBase.setOpacity(document.getElementById('opacity-slider-base').value);
+            }
+        }
+
+        document.getElementById('opacity-slider-compare').addEventListener('input', (e) => {
+            if(layerCompare) layerCompare.setOpacity(e.target.value);
+        });
+        document.getElementById('opacity-slider-base').addEventListener('input', (e) => {
+            if(layerBase) layerBase.setOpacity(e.target.value);
+        });
+
+    </script>
+</body>
+</html>

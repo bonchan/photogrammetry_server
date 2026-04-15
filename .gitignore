@@ -212,6 +212,7 @@ __marimo__/
 # metashape
 database.db
 _datasets/
+.deleteme/
 processes/
 *.psx
 *.files/

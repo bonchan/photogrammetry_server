@@ -83,13 +83,13 @@ def main():
         # Georeferencing Check
         has_transform = chunk.transform.scale and chunk.transform.rotation and chunk.transform.translation
         if has_transform:
-            update_job_status(job_id, step="Building Point Cloud (Georeferenced)")
-            chunk.buildPointCloud(progress=progress_callback)
-            doc.save()
+            # update_job_status(job_id, step="Building Point Cloud (Georeferenced)")
+            # chunk.buildPointCloud(progress=progress_callback)
+            # doc.save()
 
-            update_job_status(job_id, step="Building DEM")
-            chunk.buildDem(source_data=Metashape.PointCloudData, progress=progress_callback)
-            doc.save()
+            # update_job_status(job_id, step="Building DEM")
+            # chunk.buildDem(source_data=Metashape.PointCloudData, progress=progress_callback)
+            # doc.save()
 
             update_job_status(job_id, step="Building Orthomosaic")
             chunk.buildOrthomosaic(surface_data=Metashape.ElevationData, progress=progress_callback)
@@ -99,8 +99,8 @@ def main():
         update_job_status(job_id, step="Exporting Reports and Assets")
         chunk.exportReport(os.path.join(output_folder, 'report.pdf'))
 
-        if chunk.model:
-            chunk.exportModel(os.path.join(output_folder, 'model.obj'))
+        # if chunk.model:
+        #     chunk.exportModel(os.path.join(output_folder, 'model.obj'))
             
             # update_job_status(job_id, step="Decimating Model for WebGL")
             # chunk.decimateModel(face_count=200000, progress=progress_callback)
@@ -114,8 +114,8 @@ def main():
             # # 3. Export the low-poly version (Now it will have a proper .mtl and .jpg!)
             # chunk.exportModel(os.path.join(output_folder, 'model_decimated.obj'))
 
-        if chunk.point_cloud:
-            chunk.exportPointCloud(os.path.join(output_folder, 'point_cloud.las'), source_data=Metashape.PointCloudData)
+        # if chunk.point_cloud:
+        #     chunk.exportPointCloud(os.path.join(output_folder, 'point_cloud.las'), source_data=Metashape.PointCloudData)
 
         if chunk.elevation:
             chunk.exportRaster(os.path.join(output_folder, 'dem.tif'), source_data=Metashape.ElevationData)

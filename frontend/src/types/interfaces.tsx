@@ -1,20 +1,23 @@
+export interface RunConfig {
+  template?: string;
+  profile?: string;
+  clear_downstream?: boolean;
+}
+
+// Ensure your Job interface includes progress
 export interface Job {
   id: number;
   dataset_name: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  status: string;
   step: string;
-  progress: number;
-  created_at: string;
-  updated_at: string;
+  progress?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
-export interface FolderInfo {
+export interface Dataset {
   name: string;
   count: number;
-}
-
-// This is our "Single Source of Truth" row object
-export interface Dataset extends FolderInfo {
   latestJob?: Job;
   isProcessing: boolean;
   isCompleted: boolean;
