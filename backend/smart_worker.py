@@ -19,7 +19,8 @@ from core.pipelines import PIPELINE_PROFILES
 from core.templates import PIPELINE_TEMPLATES
 
 class SmartWorker:
-    def __init__(self, image_folder, output_folder, job_id):
+    def __init__(self, dataset_name, image_folder, output_folder, job_id):
+        self.dataset_name = dataset_name
         self.image_folder = image_folder
         self.output_folder = output_folder
         self.job_id = job_id
@@ -73,7 +74,7 @@ class SmartWorker:
             pass # Fail silently so photogrammetry doesn't stop if UI drops
 
 def run_dynamic_pipeline(dataset_name, image_dir, output_dir, job_id, config):
-    worker = SmartWorker(image_dir, output_dir, job_id)
+    worker = SmartWorker(dataset_name, image_dir, output_dir, job_id)
 
     print(f"[DEBUG] Incoming config payload: {config}")
     
@@ -120,7 +121,8 @@ def run_dynamic_pipeline(dataset_name, image_dir, output_dir, job_id, config):
             success = task_instance.run(params)
             
             if success:
-                service.save_project() # Clean, single-line save
+                service.save_project()
+                service.sync_state_file()
                 print(f"<< COMPLETED: {task_type}")
                 worker._send_webhook("MILESTONE_COMPLETED", progress=100.0, message=task_type.value)
             else:
@@ -132,13 +134,13 @@ def run_dynamic_pipeline(dataset_name, image_dir, output_dir, job_id, config):
         worker.set_current_task("Exporting Deliverables")
         os.makedirs(service.export_path, exist_ok=True)
         
-        export_status = service.get_export_status()
-        expected = service.expected_files
-        chunk = service.chunk # Local reference for brevity
+        # export_status = service.get_export_status()
+        # expected = service.expected_files
+        # chunk = service.chunk # Local reference for brevity
 
-        if chunk.orthomosaic and not export_status.get("ortho"):
-            worker.log("Exporting Orthomosaic...")
-            chunk.exportRaster(path=os.path.join(service.export_path, expected["ortho"]), source_data=Metashape.OrthomosaicData)
+        # if chunk.orthomosaic and not export_status.get("ortho"):
+        #     worker.log("Exporting Orthomosaic...")
+        #     chunk.exportRaster(path=os.path.join(service.export_path, expected["ortho"]), source_data=Metashape.OrthomosaicData)
 
         # ... (other exports: DEM, Model, Point Cloud exactly as before) ...
 

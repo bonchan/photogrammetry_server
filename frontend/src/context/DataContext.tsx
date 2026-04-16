@@ -56,16 +56,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Connect to WebSocket (adjust port if your backend runs elsewhere)
     // If you are using Vite proxy, you might need to use standard WS url formatting
-    const wsUrl = `ws://127.0.0.1:8000/ws`; 
+    const wsUrl = `ws://127.0.0.1:8000/ws`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => console.log("🟢 Connected to Metashape live feed");
-    
+
     ws.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
         // payload = { job_id, status, step, progress }
-        
+
         // Update the specific dataset that owns this job_id
         setRawDatasets(prev => prev.map(dataset => {
           if (dataset.latest_job?.id === payload.job_id || dataset.latestJob?.id === payload.job_id) {
@@ -94,22 +94,50 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  // useEffect(() => {
-  //   if (selectedFolder) {
-  //     fetch(`/api/state/${encodeURIComponent(selectedFolder)}`)
-  //       .then(res => res.json())
-  //       .then(data => setCompletedSteps(data.completed_steps || []))
-  //       .catch(() => setCompletedSteps([]));
-  //   } else {
-  //     setCompletedSteps([]);
-  //   }
-  // }, [selectedFolder, rawDatasets]);
+  useEffect(() => {
+    // If no folder is selected, clear the state and do nothing
+    if (!selectedFolder) {
+      setCompletedSteps([]);
+      return;
+    }
+
+    // 1. Open the WebSocket connection
+    // Note: Change localhost:8001 to your actual server address if different
+    const wsUrl = `ws://localhost:8000/api/ws/state/${encodeURIComponent(selectedFolder)}`;
+    const ws = new WebSocket(wsUrl);
+
+    // 2. Listen for messages from the server
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        // Whenever the server sends new data, update the UI
+        if (data.completed_steps) {
+          setCompletedSteps(data.completed_steps);
+        }
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    };
+
+    // 3. Handle connection errors
+    ws.onerror = (error) => {
+      console.error("WebSocket error on state connection:", error);
+      setCompletedSteps([]); // Fallback to empty if it fails
+    };
+
+    // 4. Cleanup: Close the socket when the user selects a different folder or leaves the page
+    return () => {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    };
+  }, [selectedFolder]); // Re-run this whenever the selected folder changes
 
   // --- 3. MODULAR RUN LAUNCHER ---
   // Now accepts a config object so you can say startJob("FM-PP-10", { start_step: "build_depth_maps" })
   const startJob = async (folderName: string, config: RunConfig = {}) => {
     try {
-      const response = await fetch(`/api/run/${encodeURIComponent(folderName)}`, { 
+      const response = await fetch(`/api/run/${encodeURIComponent(folderName)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config) // Pass the pipeline boundaries!
@@ -117,7 +145,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (response.ok) {
         // We trigger a hard refresh just to ensure DB syncs, 
         // but WS will take over immediately after.
-        refreshData(); 
+        refreshData();
       }
     } catch (error) {
       console.error("Error starting job:", error);
@@ -128,8 +156,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const datasets = useMemo(() => {
     const processed: Dataset[] = rawDatasets.map(item => {
       // Handle the snake_case from python to camelCase in React
-      const job = item.latest_job; 
-      
+      const job = item.latest_job;
+
       let isProcessing = job?.status === 'PROCESSING' || job?.status === 'PENDING';
       const isCompleted = job?.status === 'COMPLETED';
       const isFailed = job?.status === 'FAILED';

@@ -46,7 +46,13 @@ class ExportResultsTask(BaseTask):
                 "glb": Metashape.ModelFormatGLTF, 
                 "ply": Metashape.ModelFormatPLY
             }
-            self.chunk.exportModel(path=model_path, format=fmt_map.get(ext, Metashape.ModelFormatOBJ))
+            self.chunk.exportModel(
+                path=model_path, 
+                format=fmt_map.get(ext, Metashape.ModelFormatOBJ),
+                save_texture=True,
+                save_uv=True,
+                texture_format=Metashape.ImageFormatJPEG
+            )
 
         # 4. Point Cloud
         if self.chunk.point_cloud and expected.get("point_cloud"):
@@ -60,9 +66,24 @@ class ExportResultsTask(BaseTask):
             self.chunk.exportRaster(os.path.join(export_dir, expected["dem"]), source_data=Metashape.ElevationData)
 
         # 6. Raster Outputs (Ortho)
-        # if self.chunk.orthomosaic and expected.get("ortho"):
-        #     self.log("Exporting Orthomosaic...")
-        #     self.chunk.exportRaster(os.path.join(export_dir, expected["ortho"]), source_data=Metashape.OrthomosaicData)
+        if self.chunk.orthomosaic and expected.get("ortho"):
+            self.log("Exporting Orthomosaic...")
+            # self.chunk.exportRaster(os.path.join(export_dir, expected["ortho"]), source_data=Metashape.OrthomosaicData)
+
+            export_path = os.path.join(export_dir, expected["ortho"], "ortho.tif")
+
+            comp = Metashape.ImageCompression()
+            comp.tiff_compression = Metashape.ImageCompression.TiffCompressionLZW
+
+            self.chunk.exportRaster(
+                path=export_path,
+                source_data=Metashape.OrthomosaicData,
+                split_in_blocks=True,
+                block_width=8192,
+                block_height=8192,
+                save_alpha=False,
+                image_compression=comp
+            )
 
         # 7. Map Tiles (XYZ/Leaflet/Mapbox)
         # Note: Since the Service expects "dataset_map_tiles.zip", we just generate the zip 

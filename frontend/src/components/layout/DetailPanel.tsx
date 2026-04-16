@@ -5,10 +5,11 @@ import Dashboard from '@/components/dashboard/Dashboard';
 import Viewer2D from '@/components/viewers/Viewer2D';
 import Viewer3D from '@/components/viewers/Viewer3D';
 import MapViewer from '@/components/viewers/MapViewer';
+import OrthoSwipe from '@/components/viewers/OrthoSwipe';
 
 const DetailPanel = () => {
   const { datasets, selectedFolder } = useData();
-  const [activeTab, setActiveTab] = useState<'dashboard' | '2Dviewer' | '3Dviewer' | 'mapviewer' | 'outputs'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | '2Dviewer' | 'OrthoSwipe' | '3Dviewer' | 'mapviewer' | 'outputs'>('dashboard');
 
   const currentDataset = datasets.find(d => d.name === selectedFolder);
 
@@ -26,7 +27,7 @@ const DetailPanel = () => {
     <div className="main-panel">
       {/* Tabs Navigation */}
       <div className="tab-bar">
-        {(['dashboard', '2Dviewer', '3Dviewer', 'mapviewer', 'outputs'] as const).map(tab => (
+        {(['dashboard', 'OrthoSwipe', '2Dviewer', '3Dviewer', 'mapviewer', 'outputs'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -41,6 +42,7 @@ const DetailPanel = () => {
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {activeTab === 'dashboard' && <Dashboard />}
 
+        {activeTab === 'OrthoSwipe' && <OrthoSwipe />}
         {activeTab === '2Dviewer' && <Viewer2D />}
         {activeTab === '3Dviewer' && <Viewer3D />}
         {activeTab === 'mapviewer' && <MapViewer />}

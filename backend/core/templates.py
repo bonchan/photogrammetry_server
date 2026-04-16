@@ -57,12 +57,16 @@ PIPELINE_TEMPLATES = {
       },
       TaskType.ORTHO: {
         # "surface_data": Metashape.ElevationData
+
       },
       TaskType.EXPORT: {    
         "export_report": True,
         "export_tiles": True,
         "model_format": "obj"
-      }
+      },
+      TaskType.DETECTION: {
+        
+      },
     }
   }
 }

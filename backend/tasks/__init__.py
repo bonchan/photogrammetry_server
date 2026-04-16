@@ -11,6 +11,7 @@ from tasks.build_tiled_model import BuildTiledModelTask
 from tasks.build_point_cloud import BuildPointCloudTask
 from tasks.build_dem import BuildDemTask
 from tasks.build_orthomosaic import BuildOrthomosaicTask
+from tasks.detection import DetectionTask
 from tasks.export_results import ExportResultsTask
 from tasks.cleanup import CleanupTask
 
@@ -27,6 +28,7 @@ TASK_REGISTRY = {
   TaskType.POINT_CLOUD: BuildPointCloudTask,
   TaskType.DEM: BuildDemTask,
   TaskType.ORTHO: BuildOrthomosaicTask,
+  TaskType.DETECTION: DetectionTask,
   TaskType.EXPORT: ExportResultsTask,
   TaskType.CLEANUP: CleanupTask,
 }

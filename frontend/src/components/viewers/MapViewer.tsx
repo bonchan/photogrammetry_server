@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, LayerGroup, useMap, LayersControl, useMapEvents, Marker } from 'react-leaflet';
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, LayerGroup, LayersControl, GeoJSON, useMapEvents, } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 import { useData } from '@/context/DataContext';
+import './MapViewer.css';
+
+import DroneIndicator from '../map/DroneIndicator';
 
 
 
 const MapViewer = () => {
   const { datasets, selectedFolder } = useData();
+  const [data, setData] = useState<any | null>(null);
   const [tileMeta, setTileMeta] = useState<{ minZoom: number, maxZoom: number, bounds: [[number, number], [number, number]] } | null>(null);
 
   const currentDataset = datasets.find(d => d.name === selectedFolder);
@@ -24,15 +27,67 @@ const MapViewer = () => {
         .then(res => res.ok ? res.json() : null)
         .then(data => setTileMeta(data))
         .catch(() => setTileMeta(null));
+
+      fetch(`/api/outputs/${currentDataset.name}_out/exports/detections.json`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.success) {
+            console.log(json)
+            setData(json);
+
+
+          }
+        })
+        .catch(err => console.error("Detections not found:", err));
     }
   }, [currentDataset]);
 
-  if (!currentDataset || !currentDataset.isCompleted) {
-    return <div className="viewer-empty">Process the dataset to view the map.</div>;
-  }
+  const getFeatureStyle = (feature: any) => {
+    if (feature.properties.type === 'progress_ribbon') {
+      return {
+        color: feature.properties.color || '#3388ff',
+        weight: 6,
+        opacity: 0.7,
+        lineJoin: 'round'
+      };
+    }
+    return {
+      color: '#ffcc00', // Yellow for markers
+      weight: 3
+    };
+  };
 
   return (
     <div style={{ width: '100%', height: '100%', background: '#1a1a1a' }}>
+      {/* --- PROGRESS DASHBOARD --- */}
+      {data?.summary && (
+        <div className="map-stats-overlay">
+          <h3 className="stats-title">Work Progress</h3>
+          <div className="stats-total">Total: {data.summary.total_meters.toLocaleString()}m</div>
+
+          <div className="stats-list">
+            {data.summary.states.map((s: any) => (
+              <div key={s.name} className="stats-item">
+                <div className="stats-labels">
+                  <span className="state-name">{s.name}</span>
+                  <span className="state-percent">{s.percent}%</span>
+                </div>
+                <div className="progress-bg">
+                  {/* The color comes from your Python PROCESS_STATES mapping */}
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${s.percent}%`,
+                      backgroundColor: data.trace.features.find((f: any) => f.properties.state === s.name)?.properties.color || '#fff'
+                    }}
+                  />
+                </div>
+                <div className="state-meters">{s.meters.toLocaleString()}m</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <MapContainer
         center={[0, 0]}
         zoom={18}
@@ -97,6 +152,21 @@ const MapViewer = () => {
             )}
           </LayersControl.Overlay>
 
+          {/* --- THE PIPELINE TRACE LAYER --- */}
+          {data?.trace && (
+            <LayersControl.Overlay checked name="Pipeline Progress">
+              <GeoJSON
+                data={data.trace}
+                style={getFeatureStyle}
+                onEachFeature={(feature: any, layer: any) => {
+                  if (feature.properties && feature.properties.name) {
+                    layer.bindTooltip(feature.properties.name, { sticky: true });
+                  }
+                }}
+              />
+            </LayersControl.Overlay>
+          )}
+
         </LayersControl>
 
         <DroneIndicator datasetName={currentDataset.name} />
@@ -105,69 +175,8 @@ const MapViewer = () => {
   );
 };
 
-const droneIcon = new L.Icon({
-  iconUrl: '/drone.png', // Update this to match your actual file name!
-  iconSize: [32, 32],                // Width and height in pixels
-  iconAnchor: [16, 32],              // The exact pixel that points to the coordinate (usually bottom-center)
-  tooltipAnchor: [0, -32]            // Where the tooltip should float relative to the icon
-});
 
-// Helper to center the map on the drone data automatically
-// Helper to center the map AND show a marker when zoomed out
-function DroneIndicator({ datasetName }: { datasetName: string }) {
-  const map = useMap();
 
-  // State to hold our coordinates and the current zoom level
-  const [center, setCenter] = useState<{ lat: number, lng: number } | null>(null);
-  const [currentZoom, setCurrentZoom] = useState(map.getZoom());
-
-  // 1. Listen for zoom changes and update state
-  useMapEvents({
-    zoomend: () => {
-      setCurrentZoom(map.getZoom());
-    },
-  });
-
-  // 2. Fetch the center coordinates on load
-  useEffect(() => {
-    const fetchCenter = async () => {
-      try {
-        const response = await fetch(`/api/outputs/${datasetName}_out/exports/map_center.json`);
-
-        if (response.ok) {
-          const centerData = await response.json();
-          setCenter(centerData);
-          // Fly the camera to the model on first load
-          map.setView([centerData.lat, centerData.lng], 18);
-        } else {
-          console.warn("map_center.json not found for this dataset.");
-        }
-      } catch (error) {
-        console.error("Error fetching map center:", error);
-      }
-    };
-
-    fetchCenter();
-  }, [datasetName, map]);
-
-  // 3. If we have coordinates AND the zoom is less than 14, draw the marker
-  if (center && currentZoom < 15) {
-    return (
-      <Marker
-        position={[center.lat, center.lng]}
-        icon={droneIcon}
-      >
-        {/* A nice little label so they know what the pin is */}
-        {/* <Tooltip permanent direction="top" offset={[0, -20]}>
-          Drone Survey Location
-        </Tooltip> */}
-      </Marker >
-    );
-  }
-
-  // Otherwise, render nothing (the tiles are visible!)
-  return null;
-}
 
 function ZoomLogger() {
   const map = useMapEvents({

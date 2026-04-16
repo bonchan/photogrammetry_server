@@ -191,7 +191,7 @@ async def start_job(dataset_name: str, config: RunRequest, background_tasks: Bac
     cursor.execute("DELETE FROM jobs WHERE dataset_name = ?", (dataset_name,))
     cursor.execute(
         "INSERT INTO jobs (dataset_name, status, step) VALUES (?, ?, ?)", 
-        (dataset_name, "PENDING", f"Queued (From: {'Start'})")
+        (dataset_name, "PENDING", f"Queued...")
     )
     job_id = cursor.lastrowid
     conn.commit()
@@ -219,6 +219,49 @@ async def get_dataset_state(dataset_name: str):
         print(f"Error reading PSX: {e}")
         # If the file is corrupted or unreadable, return empty
         return {"completed_steps": []}
+    
+
+import asyncio
+import json
+
+# --- STATE WEBSOCKET (Watches steps.json) ---
+@app.websocket("/api/ws/state/{dataset_name}")
+async def websocket_state_endpoint(websocket: WebSocket, dataset_name: str):
+    await websocket.accept()
+    
+    # Calculate the exact path to where MetashapeService saves the steps.json
+    # Matches your MetashapeService: f"../_outputs/{dataset_name}_out"
+    output_path = os.path.join(OUTPUTS_DIR, f"{dataset_name}_out")
+    state_file_path = os.path.join(output_path, "steps.json")
+    
+    last_mtime = 0
+    
+    try:
+        while True:
+            if os.path.exists(state_file_path):
+                current_mtime = os.path.getmtime(state_file_path)
+                
+                # If the file was modified since we last checked
+                if current_mtime != last_mtime:
+                    try:
+                        with open(state_file_path, "r") as f:
+                            state_data = json.load(f)
+                        
+                        await websocket.send_json(state_data)
+                        last_mtime = current_mtime
+                    except json.JSONDecodeError:
+                        pass # Ignore temporary read errors while file is being written
+            else:
+                # If file doesn't exist yet, send empty state once
+                if last_mtime != -1:
+                    await websocket.send_json({"completed_steps": []})
+                    last_mtime = -1
+            
+            # Check every 1 second
+            await asyncio.sleep(1.0)
+            
+    except WebSocketDisconnect:
+        print(f"[WS] Client stopped watching state for {dataset_name}")
 
 @app.get("/pipelines")
 async def get_pipelines():

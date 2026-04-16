@@ -26,5 +26,6 @@ class TaskType(str, Enum):
   POINT_CLOUD = "point_cloud"
   DEM = "dem"
   ORTHO = "ortho"
+  DETECTION = "detection"
   EXPORT = "export"
   CLEANUP = "cleanup"

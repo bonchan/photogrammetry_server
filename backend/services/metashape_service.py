@@ -1,4 +1,5 @@
 import os
+import json
 from core.enums import TaskType
 import Metashape
 
@@ -8,9 +9,10 @@ class MetashapeService:
         self.output_path = os.path.abspath(f"../_outputs/{dataset_name}_out")
         self.psx_path = os.path.join(self.output_path, f"{dataset_name}.psx")
         self.export_path = os.path.join(self.output_path, "exports")
+        self.state_file = os.path.join(self.output_path, "steps.json")
 
         self.expected_files = {
-            "ortho": f"{self.dataset_name}_ortho.tif",
+            "ortho": f"{self.dataset_name}_ortho",
             "dem": f"{self.dataset_name}_dem.tif",
             "model": f"{self.dataset_name}_model.obj",
             "point_cloud": f"{self.dataset_name}_pc.las",
@@ -108,3 +110,22 @@ class MetashapeService:
             print(f"Service Error: {e}")
         
         return completed_steps
+    
+    def sync_state_file(self):
+        """
+        Queries the true state of the Metashape project and safely writes it 
+        to steps.json so the FastAPI WebSocket can push it to React.
+        """
+        completed = self.get_completed_steps()
+        
+        state_data = {"completed_steps": completed}
+        
+        # Write to a temp file and replace to prevent the WebSocket 
+        # from reading a half-written file and throwing a JSON error.
+        temp_file = self.state_file + ".tmp"
+        try:
+            with open(temp_file, "w") as f:
+                json.dump(state_data, f)
+            os.replace(temp_file, self.state_file)
+        except Exception as e:
+            print(f"Failed to sync state file: {e}")
