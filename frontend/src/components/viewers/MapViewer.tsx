@@ -91,7 +91,7 @@ const MapViewer = () => {
       <MapContainer
         center={[0, 0]}
         zoom={18}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
         minZoom={10}
         maxZoom={24}
       >
@@ -156,6 +156,7 @@ const MapViewer = () => {
           {data?.trace && (
             <LayersControl.Overlay checked name="Pipeline Progress">
               <GeoJSON
+                key={JSON.stringify(data.trace)}
                 data={data.trace}
                 style={getFeatureStyle}
                 onEachFeature={(feature: any, layer: any) => {

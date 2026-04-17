@@ -54,7 +54,7 @@ const SwipeLogic = ({ sliderPos, mode }: { sliderPos: number, mode: string }) =>
 // --- MAIN COMPONENT ---
 const OrthoSwipe = () => {
 
-  
+
 
   // State
   const [mode, setMode] = useState<'swipe' | 'opacity'>('swipe');
@@ -90,8 +90,8 @@ const OrthoSwipe = () => {
 
 
 
-  const TILES_1 = 'LOC-295__2026-04-16__09_21_17'
-  const TILES_2 = 'LOC-295__2026-04-16__15_55_40'
+  const TILES_1 = 'LOC-295__2026-04-16__15_55_40'
+  const TILES_2 = 'LOC-295__2026-04-17__09_10_37'
 
   // Fixed URLs for your tile servers
   const baseTileUrl = `/api/outputs/${TILES_1}_out/exports/${TILES_1}_map_tiles/{z}/{x}/{y}.png`;
@@ -168,7 +168,7 @@ const OrthoSwipe = () => {
       </div>
 
       {/* --- MAP --- */}
-      <MapContainer center={[0, 0]} zoom={2} style={{ width: '100%', height: '100%', zIndex: 1 }} zoomControl={false}>
+      <MapContainer center={[0, 0]} zoom={2} style={{ width: '100%', height: '100%', backgroundColor: 'transparent', zIndex: 1 }} zoomControl={false}>
 
         <DroneIndicator datasetName={TILES_1}></DroneIndicator>
 
