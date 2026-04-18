@@ -39,7 +39,7 @@ PIPELINE_PROFILES = {
         "required_asset": "ortho"
     },
     "tiled_model": {
-        "name": "Tiled Model Reconstruction",
+        "name": "Map Tiles",
         "tasks": [
             TaskType.ADD_PHOTOS,
             TaskType.ALIGN_PHOTOS,
@@ -52,7 +52,7 @@ PIPELINE_PROFILES = {
             TaskType.DEM,
             TaskType.ORTHO,
             TaskType.EXPORT,
-            TaskType.DETECTION,
+            # TaskType.DETECTION,
         ],
         "required_asset": "ortho"
     },

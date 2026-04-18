@@ -1,14 +1,16 @@
-import Metashape # type: ignore
-from core.enums import TaskType
+from .enums import MetashapeTask
 
-PIPELINE_TEMPLATES = {
+# TODO: Move these templates to the database as JSON objects.
+# For now, keeping them here as primitive dictionaries (No Metashape objects!)
+
+METASHAPE_TEMPLATES = {
   "FULL_PROCESS": {
     "label": "Full process",
     "params": {
-      TaskType.ADD_PHOTOS: {
+      MetashapeTask.ADD_PHOTOS: {
         # "crs": 4326
       },
-      TaskType.ALIGN_PHOTOS: {
+      MetashapeTask.ALIGN_PHOTOS: {
         # "downscale": 1,
         # "generic_preselection": True,
         # "reference_preselection": True,
@@ -20,7 +22,10 @@ PIPELINE_TEMPLATES = {
         # "tiepoint_limit": 0,
         # "guided_matching": False,
       },
-      TaskType.MODEL: {
+      MetashapeTask.DEPTH_MAPS: {
+      },
+      
+      MetashapeTask.MODEL: {
         # "surface_type": Metashape.Arbitrary,
         # "interpolation": Metashape.EnabledInterpolation,
         # "face_count": Metashape.HighFaceCount,
@@ -29,30 +34,33 @@ PIPELINE_TEMPLATES = {
         # "volumetric_masks": False,
         # "blocks_crs": Metashape.CoordinateSystem("EPSG::32719"),
       },
-      TaskType.UV: {
+      MetashapeTask.UV: {
         # "page_count":2, 
         # "texture_size":4096
       },
-      TaskType.TEXTURE: {
+      MetashapeTask.TEXTURE: {
         # "texture_size":4096, 
         # "ghosting_filter":True, 
       },
-      TaskType.TILED_MODEL: {
+      MetashapeTask.TILED_MODEL: {
       },
-      TaskType.POINT_CLOUD: {
+      MetashapeTask.POINT_CLOUD: {
       },
-      TaskType.DEM: {
+      MetashapeTask.DEM: {
       },
-      TaskType.ORTHO: {
+      MetashapeTask.ORTHO: {
         # "surface_data": Metashape.ElevationData
 
       },
-      TaskType.EXPORT: {    
+      MetashapeTask.EXPORT: {    
         "export_report": True,
-        "export_tiles": True,
-        "model_format": "obj"
+        "export_model": False,
+        "export_point_cloud": False,
+        "export_dem": False,
+        "export_ortho": False,
+        "export_tiles": True
       },
-      TaskType.DETECTION: {
+      MetashapeTask.DETECTION: {
         
       },
     }

@@ -15,6 +15,9 @@ from services.metashape_service import MetashapeService
 from core.enums import TaskType
 from core.pipelines import PIPELINE_PROFILES
 
+from engines.metashape.engine import MetashapeEngine
+
+REGISTERED_ENGINES = [MetashapeEngine]
 
 load_dotenv()
 
@@ -267,6 +270,10 @@ async def websocket_state_endpoint(websocket: WebSocket, dataset_name: str):
 async def get_pipelines():
     return PIPELINE_PROFILES
 
+@app.get("/api/engines")
+async def get_available_engines():
+    # Instantly returns that beautiful JSON payload
+    return [engine.get_info() for engine in REGISTERED_ENGINES]
 
 if __name__ == "__main__":
     import uvicorn
