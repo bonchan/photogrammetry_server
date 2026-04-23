@@ -13,7 +13,7 @@ METASHAPE_PIPELINES = {
             MetashapeTask.TEXTURE,
             MetashapeTask.EXPORT,
         ],
-        "required_asset": "texture" # The 'Goal' asset
+        "required_asset": "texture"
     },
     "volumetry": {
         "name": "Earthworks & Volumetry",
@@ -52,7 +52,7 @@ METASHAPE_PIPELINES = {
             MetashapeTask.DEM,
             MetashapeTask.ORTHO,
             MetashapeTask.EXPORT,
-            # MetashapeTask.DETECTION,
+            # MetashapeTask.DETECTION
         ],
         "required_asset": "ortho"
     },

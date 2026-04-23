@@ -8,7 +8,7 @@ interface DataContextType {
   startJob: (folderName: string, config?: RunConfig) => Promise<void>;
   refreshData: () => void;
   completedSteps: string[];
-  pipelineProfiles: any;
+  engineList: any;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -17,7 +17,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // We now store a single source of truth directly from the workspace endpoint
   const [rawDatasets, setRawDatasets] = useState<any[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const [pipelineProfiles, setPipelineProfiles] = useState<any>({});
+  const [engineList, setEngineList] = useState<any>({});
 
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
@@ -33,11 +33,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const fetchPipelines = async () => {
+  const fetchEngines = async () => {
     try {
-      const res = await fetch('/api/pipelines');
+      const res = await fetch('/api/engines');
       if (res.ok) {
-        setPipelineProfiles(await res.json());
+        const data = await res.json();
+        console.log('engines', data)
+        setEngineList(data);
       }
     } catch (e) {
       console.error("Failed to fetch pipelines", e);
@@ -52,7 +54,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     // Initial fetch
     fetchWorkspace();
-    fetchPipelines();
+    fetchEngines();
 
     // Connect to WebSocket (adjust port if your backend runs elsewhere)
     // If you are using Vite proxy, you might need to use standard WS url formatting
@@ -101,6 +103,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
+    setCompletedSteps([]);
+
     // 1. Open the WebSocket connection
     // Note: Change localhost:8001 to your actual server address if different
     const wsUrl = `ws://localhost:8000/api/ws/state/${encodeURIComponent(selectedFolder)}`;
@@ -111,8 +115,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const data = JSON.parse(event.data);
         // Whenever the server sends new data, update the UI
-        if (data.completed_steps) {
-          setCompletedSteps(data.completed_steps);
+        if (data.completed_tasks) {
+          setCompletedSteps(data.completed_tasks);
         }
       } catch (error) {
         console.error("Error parsing WebSocket message:", error);
@@ -137,6 +141,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Now accepts a config object so you can say startJob("FM-PP-10", { start_step: "build_depth_maps" })
   const startJob = async (folderName: string, config: RunConfig = {}) => {
     try {
+      console.log('startJob', config)
       const response = await fetch(`/api/run/${encodeURIComponent(folderName)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -208,7 +213,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [datasets, selectedFolder]);
 
   return (
-    <DataContext.Provider value={{ datasets, selectedFolder, setSelectedFolder, startJob, refreshData, completedSteps, pipelineProfiles }}>
+    <DataContext.Provider value={{ datasets, selectedFolder, setSelectedFolder, startJob, refreshData, completedSteps, engineList }}>
       {children}
     </DataContext.Provider>
   );

@@ -14,3 +14,7 @@ class StepStatus(str, Enum):
   FAILED = "FAILED"
   SKIPPED = "SKIPPED"
 
+class EngineType(str, Enum):
+  METASHAPE = "metashape"
+  ODM = "odm"
+  REALITYCAPTURE = "realitycapture"

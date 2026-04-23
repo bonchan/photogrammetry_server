@@ -1,4 +1,5 @@
 export interface RunConfig {
+  engine?: string;
   template?: string;
   profile?: string;
   clear_downstream?: boolean;

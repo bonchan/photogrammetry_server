@@ -57,7 +57,7 @@ METASHAPE_TEMPLATES = {
         "export_model": False,
         "export_point_cloud": False,
         "export_dem": False,
-        "export_ortho": False,
+        "export_ortho": True,
         "export_tiles": True
       },
       MetashapeTask.DETECTION: {

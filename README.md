@@ -76,3 +76,9 @@ By default, the backend looks for Metashape at `C:\Program Files\Agisoft\Metasha
 If your installation is in a different location, you can define it by creating a `.env` file in the root directory:
 
 METASHAPE_BIN_PATH="D:\Your\Custom\Path\metashape.exe"
+
+---
+
+## Detection server
+
+Located in the examples folder, the detection_server script iterates over TIFF files along a designated KML path to execute the detection model and calculate overall work progress.

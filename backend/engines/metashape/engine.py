@@ -21,7 +21,8 @@ from .tasks import (
     BuildTiledModelTask,
     BuildDemTask,
     BuildOrthomosaicTask,
-    ExportResultsTask
+    ExportResultsTask,
+    DetectionTask
 )
 
 # from tasks import DetectionTask
@@ -72,7 +73,7 @@ class MetashapeEngine(PhotogrammetryEngine):
             MetashapeTask.POINT_CLOUD: BuildPointCloudTask,
             MetashapeTask.DEM: BuildDemTask,
             MetashapeTask.ORTHO: BuildOrthomosaicTask,
-            # MetashapeTask.DETECTION: DetectionTask,
+            MetashapeTask.DETECTION: DetectionTask,
             MetashapeTask.EXPORT: ExportResultsTask,
             MetashapeTask.CLEANUP: DummyTask,
         }
@@ -148,28 +149,6 @@ class MetashapeEngine(PhotogrammetryEngine):
                 print(f"  [Warning] Error checking completion for {task_enum}: {e}")
                 
         return completed_tasks
-
-        # try:
-        #     # Internal checks
-        #     if len(self.chunk.cameras) > 0: completed_tasks.append(MetashapeTask.ADD_PHOTOS)
-        #     if self.chunk.tie_points and any(c.transform for c in self.chunk.cameras if c.transform): completed_tasks.append(MetashapeTask.ALIGN_PHOTOS)
-        #     if self.chunk.depth_maps: completed_tasks.append(MetashapeTask.DEPTH_MAPS)
-        #     if self.chunk.model: completed_tasks.append(MetashapeTask.MODEL)
-        #     if self.chunk.model and len(self.chunk.model.tex_vertices) > 0: completed_tasks.append(MetashapeTask.UV)
-        #     if self.chunk.model and self.chunk.model.textures: completed_tasks.append(MetashapeTask.TEXTURE)
-        #     if self.chunk.elevation: completed_tasks.append(MetashapeTask.DEM)
-        #     if self.chunk.orthomosaic: completed_tasks.append(MetashapeTask.ORTHO)
-        #     if self.chunk.point_cloud: completed_tasks.append(MetashapeTask.POINT_CLOUD)
-        #     if self.chunk.tiled_model: completed_tasks.append(MetashapeTask.TILED_MODEL)
-
-        #     # Export checks
-        #     exports = self.get_export_status()
-        #     for asset_type, exists in exports.items():
-        #         if exists:
-        #             completed_tasks.append(f"export_{asset_type}")
-
-        # except Exception as e:
-        #     print(f"Engine State Error: {e}")
 
     def sync_state_file(self):
         """Safely writes the tasks.json state file."""

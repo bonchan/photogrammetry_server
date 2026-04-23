@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import math
 
 # --- BOOTSTRAP: Add project root to sys.path ---
 # This script is at: project_root/core/worker.py
@@ -14,6 +15,7 @@ if str(project_root) not in sys.path:
 import os
 import json
 import urllib.request
+from core.enums import EngineType
 from engines.factory import get_engine
 
 class SmartWorker:
@@ -53,7 +55,7 @@ class SmartWorker:
         payload = {
             "job_id": self.job_id,
             "status": status,
-            "task": task_text
+            "step": task_text
         }
         if progress is not None:
             payload["progress"] = round(progress, 1)
@@ -136,7 +138,7 @@ if __name__ == "__main__":
     DATASET_NAME = sys.argv[1]
     INPUT_DIR = sys.argv[2]
     OUTPUT_DIR = sys.argv[3]
-    JOB_ID = sys.argv[4] # Kept as string just in case it's a UUID
+    JOB_ID = int(sys.argv[4])
     
     try:
         CONFIG = json.loads(sys.argv[5])

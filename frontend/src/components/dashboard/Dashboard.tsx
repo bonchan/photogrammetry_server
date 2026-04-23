@@ -3,9 +3,10 @@ import { useData } from '@/context/DataContext';
 import './Dashboard.css';
 
 const Dashboard = () => {
-  const { datasets, selectedFolder, startJob, completedSteps, pipelineProfiles } = useData();
-  const [now, setNow] = useState(Date.now());
+  const { datasets, selectedFolder, startJob, completedSteps, engineList } = useData();
+  const [selectedEngineId, setSelectedEngineId] = useState('');
 
+  const [now, setNow] = useState(Date.now());
   const currentDataset = datasets.find(d => d.name === selectedFolder);
   if (!currentDataset) return null;
 
@@ -16,6 +17,15 @@ const Dashboard = () => {
     }
     return () => clearInterval(timer);
   }, [currentDataset.isProcessing]);
+
+  useEffect(() => {
+    if (selectedEngineId == '') {
+      if (engineList.length > 0) {
+        setSelectedEngineId(engineList[0].id);
+      }
+    }
+
+  }, [engineList]);
 
   const parseDate = (dateStr: string) => {
     return new Date(dateStr.endsWith('Z') ? dateStr : dateStr + "Z").getTime();
@@ -33,17 +43,21 @@ const Dashboard = () => {
     return `${mins}m ${secs}s`;
   };
 
-  const handlePipelineAction = (profileId: string, isDone: boolean) => {
+  const handlePipelineAction = (pipeline: any, isDone: boolean) => {
     if (isDone) {
-      alert(`Opening viewer for ${profileId}... (Visualization module coming soon)`);
+      alert(`Opening viewer for ${pipeline.id}... (Visualization module coming soon)`);
       // Later: navigate(`/viewer/${selectedFolder}/${profileId}`)
     } else {
       // Trigger the pipeline profile
-      startJob(currentDataset.name, { profile: profileId });
+      console.log('handlePipelineAction', pipeline, selectedEngineId)
+      startJob(currentDataset.name, { engine: selectedEngineId, profile: pipeline.id  });
     }
   };
 
   const isGlobalProcessing = currentDataset.isProcessing || currentDataset.isStalled;
+
+  const selectedEngine = engineList.find((e: any) => e.id === selectedEngineId);
+  const currentPipelines = selectedEngine ? selectedEngine.pipelines : [];
 
   return (
     <div className="dashboard-container">
@@ -96,7 +110,7 @@ const Dashboard = () => {
                     width: `${currentDataset.latestJob?.progress || 0}%`,
                     backgroundColor: currentDataset.isStalled ? '#f44336' : '#2196f3',
                     transition: 'width 0.3s ease',
-                    
+
                   }}
                 />
               </div>
@@ -107,53 +121,53 @@ const Dashboard = () => {
 
       {/* --- pipeline PROFILES (The Actions) --- */}
       <div className="pipeline-section" style={{ marginTop: '20px' }}>
-        <h3 style={{ marginBottom: '15px' }}>Available Pipelines</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px' }}>
-          {Object.entries(pipelineProfiles).map(([id, pipeline]: [string, any]) => {
-            const isDone = completedSteps.includes(pipeline.required_asset);
 
-            // return (
-            //   <div key={id} className="pipeline-card" style={{
-            //     display: 'flex',
-            //     justifyContent: 'space-between',
-            //     alignItems: 'center',
-            //     padding: '5px',
-            //     border: '1px solid #e0e0e0',
-            //     borderRadius: '10px',
-            //     backgroundColor: isDone ? '#f8fff9' : '#fff'
-            //   }}>
-            //     {/* Left Side: Text Details takes up remaining space */}
-            //     <div style={{ flex: 1, paddingRight: '15px' }}>
-            //       <h4 style={{ margin: 0, fontSize: '1rem' }}>{pipeline.name}</h4>
-            //       <p style={{ margin: '5px 0', fontSize: '0.85rem', color: '#666' }}>
-            //         {pipeline.description}
-            //       </p>
-            //       <p style={{ margin: '5px 0 0', fontSize: '0.8rem', color: '#666' }}>
-            //         Target: {pipeline.required_asset.toUpperCase()}
-            //       </p>
-            //     </div>
-            //     <button
-            //       disabled={isGlobalProcessing && !isDone}
-            //       onClick={() => handlePipelineAction(id, isDone)}
-            //       className={isDone ? 'btn-secondary' : 'btn-primary'}
-            //       style={{ minWidth: '160px' }}
-            //     >
-            //       {isDone ? `View ${id}` : `Process ${id}`}
-            //     </button>
-            //   </div>
-            // );
+        {/* --- ENGINE SELECTION COMBO BOX --- */}
+        <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
+          <label htmlFor="engine-select" style={{ fontWeight: 'bold', marginRight: '15px' }}>
+            Processing Engine:
+          </label>
+          <select
+            id="engine-select"
+            value={selectedEngineId}
+            onChange={(e) => setSelectedEngineId(e.target.value)}
+            disabled={isGlobalProcessing} // Lock dropdown while a job is running
+            style={{
+              padding: '10px',
+              borderRadius: '5px',
+              border: '1px solid #ccc',
+              fontSize: '1rem',
+              minWidth: '250px'
+            }}
+          >
+            {engineList.map((engine: any) => (
+              <option key={engine.id} value={engine.id}>
+                {engine.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <h3 style={{ marginBottom: '15px' }}>Available Pipelines</h3>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px' }}>
+          {/* Map over the currently selected engine's pipelines array */}
+          {currentPipelines.map((pipeline: any) => {
+            // Access the id directly from the pipeline object now
+            const id = pipeline.id;
+            const isDone = completedSteps.includes(pipeline.required_asset);
 
             return (
               <div key={id} className="pipeline-card" style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '5px',
+                padding: '10px 15px', // slightly padded for better look
                 border: '1px solid #e0e0e0',
                 borderRadius: '10px',
                 backgroundColor: isDone ? '#f8fff9' : '#fff'
               }}>
-                {/* Left Side: Text Details takes up remaining space */}
+                {/* Left Side: Text Details */}
                 <div style={{ flex: 1, paddingRight: '15px' }}>
                   <h4 style={{ margin: 0, fontSize: '1rem' }}>{pipeline.name}</h4>
                   <p style={{ margin: '5px 0', fontSize: '0.85rem', color: '#666' }}>
@@ -164,28 +178,29 @@ const Dashboard = () => {
                   </p>
                 </div>
 
-                {/* Right Side: Fixed-width container to force vertical column alignment */}
+                {/* Right Side: Action Buttons */}
                 <div style={{
                   display: 'flex',
                   gap: '10px',
-                  width: '510px', // Exactly fits two 160px buttons + 10px gap
-                  justifyContent: 'flex-end' // Locks the right button to the edge if the left one is missing
+                  width: '510px',
+                  justifyContent: 'flex-end'
                 }}>
                   {isDone &&
                     <button
                       disabled={isGlobalProcessing && !isDone}
-                      onClick={() => handlePipelineAction(id, isDone)}
+                      onClick={() => handlePipelineAction(pipeline, isDone)}
                       className={isDone ? 'btn-secondary' : 'btn-primary'}
-                      style={{ width: '250px' }} // Switched from minWidth to strict width
+                      style={{ width: '250px' }}
                     >
                       {`View ${id}`}
                     </button>
                   }
                   <button
                     disabled={isGlobalProcessing}
-                    onClick={() => handlePipelineAction(id, false)}
+                    // NOTE: Ensure your handlePipelineAction sends both the pipeline id AND selectedEngineId to the backend!
+                    onClick={() => handlePipelineAction(pipeline, false)}
                     className={isDone ? 'btn-alert' : 'btn-primary'}
-                    style={{ width: '250px' }} // Switched from minWidth to strict width
+                    style={{ width: '250px' }}
                   >
                     {isGlobalProcessing ? 'Wait' : isDone ? `Reprocess ${id}` : `Process ${id}`}
                   </button>
@@ -225,7 +240,7 @@ const Dashboard = () => {
       <div className="status-section" style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '10px' }}>
         <h4 style={{ marginBottom: '15px', color: '#555' }}>Dataset Export Status</h4>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-          {['export_map_tiles', 'export_ortho', 'export_dem', 'export_model', 'export_point_cloud', 'export_report'].map(step => {
+          {['export_map_center', 'export_map_tiles', 'export_ortho', 'export_dem', 'export_model', 'export_point_cloud', 'export_report'].map(step => {
             const isDone = completedSteps.includes(step);
             return (
               <div key={step} style={{

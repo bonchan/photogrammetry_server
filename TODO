@@ -1,6 +1,9 @@
 https://www.agisoft.com/pdf/metashape_python_api_2_1_2.pdf
 
 
+localstack
+
+
 
 backend run from backend
  - python -m main

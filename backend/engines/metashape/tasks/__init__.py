@@ -11,6 +11,7 @@ from .build_point_cloud import BuildPointCloudTask
 from .build_dem import BuildDemTask
 from .build_orthomosaic import BuildOrthomosaicTask
 from .export_results import ExportResultsTask
+from .detection import DetectionTask
 
 __all__ = [
     "MetashapeTaskBase",
@@ -26,4 +27,5 @@ __all__ = [
     "BuildDemTask",
     "BuildOrthomosaicTask",
     "ExportResultsTask",
+    "DetectionTask",
 ]
